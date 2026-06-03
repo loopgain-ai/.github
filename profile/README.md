@@ -24,32 +24,36 @@ LoopGain watches each loop's error trajectory and classifies it live into five n
 
 Under the hood it's a **Barkhausen-criterion (`Aβ`) stability classifier** — the same loop-gain test that decides whether any feedback system converges or oscillates, applied to an LLM agent loop instead of an amplifier. That's the *how*; the outcome is less spend and faster loops.
 
-```python
+```bash
 pip install loopgain
 ```
 
 ```python
-import loopgain as lg
+from loopgain import LoopGain
 
-# wrap your existing verify-revise loop — framework-agnostic
-monitor = lg.Monitor()
-for step in agent_loop():
-    state = monitor.observe(step.error)
-    if state.should_stop:
-        break          # converged, or rolled back to best-so-far
+lg = LoopGain(target_error=0.1)          # wrap your existing loop — framework-agnostic
+
+while lg.should_continue():              # stops on convergence, not a fixed cap
+    errors = verifier.verify(output)
+    lg.observe(errors, output=output)
+    output = reviser.revise(output, errors)
+
+result = lg.result
+print(result.outcome)        # "converged" | "stalled" | "oscillating" | "diverged" | "max_iterations"
+print(result.best_output)    # best-so-far iteration, automatically recovered
 ```
 
 ## The numbers
 
-Measured across a public benchmark of **2,000 paired real-API trials** (8,000 runs), versus a fixed `max_iterations=20` baseline:
+Measured across a public benchmark of **2,000 paired real-API trials** (8,000 loop runs) against a fixed `max_iterations=20` baseline, on `loopgain` v0.4.0:
 
 | Metric | Result |
 |---|---|
-| Cost | **93.5% reduction** ($27.61 → $1.80; **$25.81 saved** per trial) |
-| Wall-clock | **~10× faster** (median 93.0s → 9.8s) |
-| Quality | preserved on the natural distribution; improved on engineered-failure cases |
+| Cost | **92.8% reduction** in total API spend ($27.05 → $1.94 across the run) |
+| Latency | **~15× faster** median wall-clock (the ratio is the stable claim; absolute latency is environment-dependent) |
+| Quality | preserved on natural-distribution workloads (W1–W4); *improved* on engineered-failure workloads (W5) |
 
-Full protocol, raw data, and the cases where it *doesn't* help are public: **[loopgain-bench](https://github.com/loopgain-ai/loopgain-bench)**.
+Weighted judge preference 0.678 across 1,800 pairwise comparisons, and **zero of six pre-registered kill criteria fired.** Full protocol, raw data, and the cases where it *doesn't* help are public: **[loopgain-bench](https://github.com/loopgain-ai/loopgain-bench)**.
 
 > **Scope, honestly:** LoopGain proves a loop *stopped moving* and recovers the best iteration it saw — it does not by itself prove the loop stopped at the *correct* answer. It's a cost-and-stability control on the loop, not a correctness oracle.
 
