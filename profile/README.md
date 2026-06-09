@@ -20,7 +20,7 @@ LoopGain watches each loop's error trajectory and classifies it live into five n
 
 - **Stops** the loop once it has converged, instead of running out the cap.
 - **Rolls back** to the best-so-far iteration before a loop degrades a good result.
-- **Estimates** remaining iterations live, exposed as `lg.eta`.
+- **Reports** the iterations it saved versus a fixed cap, exposed as `result.savings_vs_fixed_cap`.
 
 Under the hood it's a **Barkhausen-criterion (`Aβ`) stability classifier** — the same loop-gain test that decides whether any feedback system converges or oscillates, applied to an LLM agent loop instead of an amplifier. That's the *how*; the outcome is less spend and faster loops.
 
